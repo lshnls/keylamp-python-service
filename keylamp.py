@@ -25,7 +25,7 @@ WHITE = "9"
 BLACK = "0"
 
 COLORS = {
-    "us": BLUE,
+    "us": GREEN,
     "ru": RED,
 }
 
@@ -63,7 +63,8 @@ async def connect_to_arduino() -> Optional[serial.Serial]:
 
     if not ports:
         logger.warning("No serial devices found")
-        return None
+        # выход если ошибка интерфейса
+        os._exit(1)
 
     for p in ports:
         logger.info(f"Trying {p.device}")
@@ -119,7 +120,10 @@ async def main():
 
         if not ser.is_open:
             logger.error("Serial port closed")
+            
             stop_event.set()
+            # выход если ошибка интерфейса
+            os._exit(1)
             return
 
         try:
@@ -129,6 +133,9 @@ async def main():
         except Exception as e:
             logger.error(f"Serial write error: {e}")
             stop_event.set()
+            # выход если ошибка интерфейса
+            os._exit(1)
+            
 
     try:
         bus = await MessageBus().connect()
@@ -139,8 +146,8 @@ async def main():
             return
         
         # Здесь можно поставить цвет при запуске
-        if ser.is_open:
-            send_color(GRAY)
+        #if ser.is_open:
+        #    send_color(GRAY)
             
         def handle_source_change(source: str):
             color = COLORS.get(source)
