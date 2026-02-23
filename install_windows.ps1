@@ -1,7 +1,10 @@
 # ===============================
-# KeyLamp User Installer
-# No admin required
+# KeyLamp User Installer (no admin)
+# Using dist\keylamp.exe
 # ===============================
+# Убить все процессы keylamp.exe
+#Stop-Process -Name "keylamp" -Force
+
 
 $ErrorActionPreference = "Stop"
 
@@ -9,32 +12,26 @@ $AppName = "KeyLamp"
 $SourceExe = ".\dist\keylamp.exe"
 $InstallDir = "$env:LOCALAPPDATA\KeyLamp"
 $TargetExe = "$InstallDir\keylamp.exe"
+$StartupFolder = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+$ShortcutPath = Join-Path $StartupFolder "$AppName.lnk"
 
 Write-Host "Installing $AppName for current user..."
 
-# Создание папки
+# Создать папку установки, если не существует
 if (!(Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir | Out-Null
 }
 
-# Копирование exe
+# Копировать exe из dist
 Copy-Item $SourceExe $TargetExe -Force
 Write-Host "Copied to $InstallDir"
 
-# Удаление старой задачи если есть
-schtasks /delete /tn $AppName /f 2>$null
+# Создать ярлык в автозагрузке
+$WshShell = New-Object -ComObject WScript.Shell
+$Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+$Shortcut.TargetPath = $TargetExe
+$Shortcut.WorkingDirectory = $InstallDir
+$Shortcut.Save()
 
-# Создание задачи для текущего пользователя
-schtasks /create `
-    /tn $AppName `
-    /tr "`"$TargetExe`"" `
-    /sc onlogon `
-    /RL LIMITED `
-    /F
-
-Write-Host "Installation complete."
-Write-Host "It will start automatically on next login."
-
-
-# Убить все процессы keylamp.exe
-#Stop-Process -Name "keylamp" -Force
+Write-Host "Shortcut created in Startup folder."
+Write-Host "Installation complete. The app will start automatically on next login."
