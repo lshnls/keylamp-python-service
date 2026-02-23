@@ -204,6 +204,7 @@ async def main():
         def handle_signal():
             logger.info("Termination signal received")
             stop_event.set()
+            os._exit(1)
 
         loop = asyncio.get_running_loop()
         loop.add_signal_handler(signal.SIGTERM, handle_signal)
