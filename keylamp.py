@@ -153,6 +153,8 @@ async def monitor_linux_layout(ser: serial.Serial):
 def get_windows_layout():
     import ctypes
     import ctypes.wintypes
+    #from dbus_fast import DBusError
+    #from dbus_fast.aio import MessageBus
 
     user32 = ctypes.WinDLL("user32", use_last_error=True)
 
