@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# ===============================
+# KeyLamp User Installer (no admin)
+# Using dist\keylamp.exe
 
 set -e
 
