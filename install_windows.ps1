@@ -39,7 +39,7 @@ try {
     Start-Process -FilePath $TargetExe -WorkingDirectory $InstallDir
     Write-Host "Started $AppName."
 } catch {
-    Write-Host "Failed to start $AppName: $_"
+    Write-Host "Failed to start $AppName : $_"
 }
 
 Write-Host "Installation complete. The app will start automatically on next login."
