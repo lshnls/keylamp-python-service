@@ -42,4 +42,4 @@ try {
     Write-Host "Failed to start $AppName : $_"
 }
 
-Write-Host "Installation complete. The app will start automatically on next login."
+Write-Host "Installation complete."
