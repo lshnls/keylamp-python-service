@@ -126,18 +126,20 @@ async def monitor_linux_layout(ser: serial.Serial):
         try:
             ser.write(color.encode())
             last_color = color
-            logger.info(f"Sent color {color}")
+        #    logger.info(f"Sent color {color}")
         except Exception as e:
             logger.error(f"Serial error: {e}")
             os._exit(1)
 
-    send_color(GRAY)
-
+    
     def handle_source_change(source: str):
         color = COLORS_LINUX.get(source)
         if color:
             send_color(color)
-            logger.info(f"Layout: {source}")
+        #    logger.info(f"Layout: {source}")
+
+    # Изначально отключить светодиод, чтобы не было путаницы при запуске
+    # send_color(BLACK)
 
     interface.on_source_changed(handle_source_change)
 
@@ -200,30 +202,6 @@ async def monitor_windows_layout(ser: serial.Serial, stop_event: asyncio.Event):
 # MAIN
 # =========================
 
-async def handle_ipc(reader, writer, ser, stop_event: asyncio.Event):
-    data = await reader.readline()
-    cmd = data.decode().strip().lower()
-    addr = writer.get_extra_info('peername')
-    logger.info(f"Received IPC command '{cmd}' from {addr}")
-    if cmd in ('off', 'shutdown'):
-        try:
-            ser.write(BLACK.encode())
-            logger.info("LED turned off via IPC")
-        except Exception as e:
-            logger.error(f"Failed to write to serial during IPC: {e}")
-    if cmd == 'shutdown':
-        stop_event.set()
-    writer.close()
-
-async def start_ipc_server(ser, stop_event: asyncio.Event):
-    server = await asyncio.start_server(
-        lambda r, w: handle_ipc(r, w, ser, stop_event),
-        '127.0.0.1', 8765
-    )
-    logger.info("IPC server listening on 127.0.0.1:8765")
-    async with server:
-        await server.serve_forever()
-
 async def main():
     stop_event = asyncio.Event()
     ser = None
@@ -266,9 +244,9 @@ async def main():
             loop.add_signal_handler(signal.SIGTERM, handle_signal)
             loop.add_signal_handler(signal.SIGINT, handle_signal)
 
-        # запустить IPC сервер на Windows
+
         if platform.system() == "Windows":
-            asyncio.create_task(start_ipc_server(ser, stop_event))
+
             await monitor_windows_layout(ser, stop_event)
         else:
             await monitor_linux_layout(ser)
