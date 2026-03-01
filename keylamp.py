@@ -201,25 +201,47 @@ async def monitor_windows_layout(ser: serial.Serial):
 
 async def main():
     stop_event = asyncio.Event()
+    ser = None
 
-    if platform.system() != "Windows":
-        def handle_signal():
-            logger.info("Termination signal received")
-            stop_event.set()
-            os._exit(1)
+    try:
+        ser = await connect_to_arduino()
+        if not ser:
+            sys.exit(1)
 
-        loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGTERM, handle_signal)
-        loop.add_signal_handler(signal.SIGINT, handle_signal)
+        def cleanup():
+            """Отключить светодиод и закрыть соединение"""
+            try:
+                if ser and ser.is_open:
+                    logger.info("Turning off LED")
+                    ser.write(BLACK.encode())
+                    ser.close()
+            except Exception as e:
+                logger.error(f"Error during cleanup: {e}")
 
-    ser = await connect_to_arduino()
-    if not ser:
-        sys.exit(1)
+        if platform.system() != "Windows":
+            def handle_signal():
+                logger.info("Termination signal received")
+                cleanup()
+                os._exit(0)
 
-    if platform.system() == "Windows":
-        await monitor_windows_layout(ser)
-    else:
-        await monitor_linux_layout(ser)
+            loop = asyncio.get_running_loop()
+            loop.add_signal_handler(signal.SIGTERM, handle_signal)
+            loop.add_signal_handler(signal.SIGINT, handle_signal)
+
+        if platform.system() == "Windows":
+            await monitor_windows_layout(ser)
+        else:
+            await monitor_linux_layout(ser)
+
+    finally:
+        # Убедиться, что светодиод отключен при выходе
+        try:
+            if ser and ser.is_open:
+                logger.info("Turning off LED")
+                ser.write(BLACK.encode())
+                ser.close()
+        except Exception as e:
+            logger.error(f"Error turning off LED: {e}")
 
 
 if __name__ == "__main__":
@@ -227,3 +249,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        sys.exit(1)
