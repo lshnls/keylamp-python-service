@@ -93,7 +93,7 @@ async def connect_to_arduino() -> Optional[serial.Serial]:
 # =========================
 
 async def monitor_linux_layout(ser: serial.Serial):
-    from dbus_fast import DBusError
+    from dbus_fast import DBusError, Message
     from dbus_fast.aio import MessageBus
 
     BUS_NAME = "org.gnome.InputSourceMonitor"
@@ -115,6 +115,21 @@ async def monitor_linux_layout(ser: serial.Serial):
     if not interface:
         logger.error("D-Bus service unavailable")
         sys.exit(1)
+
+    # заводской сигнал в начале, чтобы LED сразу перешёл в US
+    try:
+        msg = Message(
+            destination=BUS_NAME,
+            path=BUS_PATH,
+            interface=BUS_NAME,
+            member="SourceChanged",
+            signature="s",
+            body=["us"],
+        )
+        await bus.send(msg)
+        logger.info("Emitted startup SourceChanged('us') signal")
+    except Exception as e:
+        logger.warning(f"Could not emit startup signal: {e}")
 
     last_color = None
 
