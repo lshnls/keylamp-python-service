@@ -30,6 +30,19 @@ function Log {
 if ($Uninstall) {
     Write-Host "Removing $AppName..."
     
+    # попытаться уведомить запущенный экземпляр через TCP
+    try {
+        $client = New-Object System.Net.Sockets.TcpClient('127.0.0.1', 8765)
+        $stream = $client.GetStream()
+        $writer = New-Object System.IO.StreamWriter($stream)
+        $writer.WriteLine('shutdown')
+        $writer.Flush()
+        $client.Close()
+        Write-Host "Sent shutdown command to running instance."
+    } catch {
+        Write-Host "Could not contact running instance via IPC: $_" -ForegroundColor Yellow
+    }
+    
     # Убить процесс
     try {
         Stop-Process -Name "keylamp" -Force -ErrorAction SilentlyContinue

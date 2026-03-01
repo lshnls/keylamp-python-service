@@ -169,13 +169,13 @@ def get_windows_layout():
     return hkl & 0xFFFF
 
 
-async def monitor_windows_layout(ser: serial.Serial):
+async def monitor_windows_layout(ser: serial.Serial, stop_event: asyncio.Event):
     last_lang = None
     last_color = None
 
     logger.info("Listening for Windows layout changes")
 
-    while True:
+    while not stop_event.is_set():
         try:
             lang = get_windows_layout()
 
@@ -193,32 +193,70 @@ async def monitor_windows_layout(ser: serial.Serial):
         except Exception as e:
             logger.error(f"Serial error: {e}")
             os._exit(1)
+    logger.info("Windows layout monitor exiting")
 
 
 # =========================
 # MAIN
 # =========================
 
+async def handle_ipc(reader, writer, ser, stop_event: asyncio.Event):
+    data = await reader.readline()
+    cmd = data.decode().strip().lower()
+    addr = writer.get_extra_info('peername')
+    logger.info(f"Received IPC command '{cmd}' from {addr}")
+    if cmd in ('off', 'shutdown'):
+        try:
+            ser.write(BLACK.encode())
+            logger.info("LED turned off via IPC")
+        except Exception as e:
+            logger.error(f"Failed to write to serial during IPC: {e}")
+    if cmd == 'shutdown':
+        stop_event.set()
+    writer.close()
+
+async def start_ipc_server(ser, stop_event: asyncio.Event):
+    server = await asyncio.start_server(
+        lambda r, w: handle_ipc(r, w, ser, stop_event),
+        '127.0.0.1', 8765
+    )
+    logger.info("IPC server listening on 127.0.0.1:8765")
+    async with server:
+        await server.serve_forever()
+
 async def main():
     stop_event = asyncio.Event()
     ser = None
+
+    def cleanup():
+        """Отключить светодиод и закрыть соединение"""
+        try:
+            if ser and ser.is_open:
+                logger.info("Turning off LED")
+                ser.write(BLACK.encode())
+                ser.close()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
 
     try:
         ser = await connect_to_arduino()
         if not ser:
             sys.exit(1)
 
-        def cleanup():
-            """Отключить светодиод и закрыть соединение"""
-            try:
-                if ser and ser.is_open:
-                    logger.info("Turning off LED")
-                    ser.write(BLACK.encode())
-                    ser.close()
-            except Exception as e:
-                logger.error(f"Error during cleanup: {e}")
+        # atexit на всякий случай
+        import atexit
+        atexit.register(cleanup)
 
-        if platform.system() != "Windows":
+        if platform.system() == "Windows":
+            # Обработка Ctrl+C на Windows
+            def handle_windows_exit(signum, frame):
+                logger.info("Termination signal received")
+                cleanup()
+                sys.exit(0)
+
+            signal.signal(signal.SIGINT, handle_windows_exit)
+        else:
+            # Обработка Unix-сигналов
             def handle_signal():
                 logger.info("Termination signal received")
                 cleanup()
@@ -228,20 +266,17 @@ async def main():
             loop.add_signal_handler(signal.SIGTERM, handle_signal)
             loop.add_signal_handler(signal.SIGINT, handle_signal)
 
+        # запустить IPC сервер на Windows
         if platform.system() == "Windows":
-            await monitor_windows_layout(ser)
+            asyncio.create_task(start_ipc_server(ser, stop_event))
+            await monitor_windows_layout(ser, stop_event)
         else:
             await monitor_linux_layout(ser)
 
     finally:
         # Убедиться, что светодиод отключен при выходе
-        try:
-            if ser and ser.is_open:
-                logger.info("Turning off LED")
-                ser.write(BLACK.encode())
-                ser.close()
-        except Exception as e:
-            logger.error(f"Error turning off LED: {e}")
+        cleanup()
+
 
 
 if __name__ == "__main__":
@@ -251,4 +286,6 @@ if __name__ == "__main__":
         logger.info("Interrupted by user")
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        sys.exit(1)
+    finally:
+        logger.info("Application terminated")
+        sys.exit(0)
