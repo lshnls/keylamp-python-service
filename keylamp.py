@@ -138,8 +138,31 @@ async def monitor_linux_layout(ser: serial.Serial):
             send_color(color)
         #    logger.info(f"Layout: {source}")
 
-    # Изначально отключить светодиод, чтобы не было путаницы при запуске
-    # send_color(BLACK)
+    # Попытка определить текущую раскладку через gsettings
+    try:
+        import subprocess, ast
+        out = subprocess.check_output(
+            ["gsettings", "get", "org.gnome.desktop.input-sources", "current"],
+            text=True,
+        ).strip()
+        idx = int(out.split()[-1])
+        sources_out = subprocess.check_output(
+            ["gsettings", "get", "org.gnome.desktop.input-sources", "sources"],
+            text=True,
+        )
+        sources = ast.literal_eval(sources_out)
+        if 0 <= idx < len(sources):
+            layout = sources[idx][1]
+            color = COLORS_LINUX.get(layout)
+            if color:
+                send_color(color)
+                logger.info(f"Initial layout {layout}, sent color {color}")
+            else:
+                logger.info(f"Initial layout {layout} has no mapped color")
+        else:
+            logger.info("gsettings reports invalid index")
+    except Exception as e:
+        logger.info(f"Could not determine initial layout via gsettings: {e}")
 
     interface.on_source_changed(handle_source_change)
 
