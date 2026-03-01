@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ===============================
 # KeyLamp User Installer (no admin)
-# Using dist\keylamp.exe
+# Bash version mirrors Windows installer with -Uninstall option
+# ===============================
 
 set -e
 
@@ -16,6 +17,20 @@ SERVICE_FILE="$SYSTEMD_USER_DIR/${SERVICE_NAME}.service"
 
 MAIN_SCRIPT="$PROJECT_DIR/keylamp.py"
 VENV_PYTHON="$VENV_DIR/bin/python"
+
+# parse command-line
+if [[ "$1" == "-Uninstall" || "$1" == "-u" ]]; then
+    echo "==> Uninstalling KeyLamp service and files"
+    systemctl --user stop ${SERVICE_NAME}.service 2>/dev/null || true
+    systemctl --user disable ${SERVICE_NAME}.service 2>/dev/null || true
+    rm -f "$SERVICE_FILE"
+    systemctl --user daemon-reload
+    echo "==> Removed systemd service"
+    echo "==> Deleting project directory $PROJECT_DIR"
+    rm -rf "$PROJECT_DIR"
+    echo "==> Uninstallation complete"
+    exit 0
+fi
 
 echo "==> Creating project directory"
 mkdir -p "$PROJECT_DIR"
