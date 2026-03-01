@@ -34,20 +34,43 @@ if ($Uninstall) {
     try {
         Stop-Process -Name "keylamp" -Force -ErrorAction SilentlyContinue
         Write-Host "Stopped $AppName process."
+        Start-Sleep -Milliseconds 1000 # Ждем освобождения файлов
     } catch {
         Write-Host "No running process found."
     }
     
     # Удалить ярлык из автозагрузки
     if (Test-Path $ShortcutPath) {
-        Remove-Item $ShortcutPath -Force
-        Write-Host "Removed Startup shortcut."
+        try {
+            Remove-Item $ShortcutPath -Force -ErrorAction Stop
+            Write-Host "Removed Startup shortcut."
+        } catch {
+            Write-Host "WARNING: Could not remove shortcut: $_" -ForegroundColor Yellow
+        }
     }
     
-    # Удалить установочную папку
+    # Удалить установочную папку с повторными попытками
     if (Test-Path $InstallDir) {
-        Remove-Item $InstallDir -Recurse -Force
-        Write-Host "Removed installation directory."
+        $MaxRetries = 5
+        $RetryCount = 0
+        $RemovalSuccess = $false
+        
+        while ($RetryCount -lt $MaxRetries -and -not $RemovalSuccess) {
+            try {
+                Remove-Item $InstallDir -Recurse -Force -ErrorAction Stop
+                Write-Host "Removed installation directory."
+                $RemovalSuccess = $true
+            } catch {
+                $RetryCount++
+                if ($RetryCount -lt $MaxRetries) {
+                    Write-Host "Attempt $RetryCount failed, retrying in 1 second..." -ForegroundColor Yellow
+                    Start-Sleep -Seconds 1
+                } else {
+                    Write-Host "ERROR: Could not remove directory after $MaxRetries attempts: $_" -ForegroundColor Red
+                    exit 1
+                }
+            }
+        }
     }
     
     Write-Host "Uninstallation complete."
@@ -115,8 +138,8 @@ try {
     Log "Started $AppName (hidden)."
     Write-Host "Started $AppName." -ForegroundColor Green
 } catch {
-    Write-Host "WARNING: Failed to start $AppName: $_" -ForegroundColor Yellow
-    Log "Failed to start $AppName: $_"
+    Write-Host "WARNING: Failed to start $AppName\: $_" -ForegroundColor Yellow
+    Log "Failed to start $AppName\: $_"
 }
 
 Write-Host "Installation complete. The app will start automatically on next login." -ForegroundColor Green
