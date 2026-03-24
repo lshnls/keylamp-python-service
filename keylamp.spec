@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['cute-cartoon.ico'],
+    icon=['cute-cartoon-owl-vector-illustration-isolated-white-background_1151-22905.ico'],
 )
