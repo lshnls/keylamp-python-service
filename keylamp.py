@@ -30,14 +30,14 @@ WHITE = "9"
 BLACK = "0"
 
 COLORS_LINUX = {
-    "us": BLUE,
+    "us": GREEN,
     "ru": RED,
 }
 
 # Для Windows используется идентификатор языка (LANGID)
 # из WinAPI. Здесь маппим только US и RU.
 COLORS_WINDOWS = {
-    0x0409: BLUE,   # English (US)
+    0x0409: GREEN,   # English (US)
     0x0419: RED,    # Russian
 }
 
