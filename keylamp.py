@@ -4,6 +4,11 @@
 Программа отслеживает изменение раскладки (US/RU) на Linux‑GNOME и Windows,
 и посылает соответствующую команду по последовательному порту к Arduino,
 который управляет светодиодом (RGB). Цвета задаются константами ниже.
+
+Для начала:
+python.exe -m venv venv
+pip install serial
+pip install pyserial
 """
 import asyncio
 import logging
