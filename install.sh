@@ -14,18 +14,25 @@ PYTHON_BIN="/usr/bin/python3"
 
 SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
 SERVICE_FILE="$SYSTEMD_USER_DIR/${SERVICE_NAME}.service"
+UDEV_RULE_FILE="/etc/udev/rules.d/99-keylamp-serial.rules"
 
 MAIN_SCRIPT="$PROJECT_DIR/keylamp.py"
 VENV_PYTHON="$VENV_DIR/bin/python"
 
 # parse command-line
-if [[ "$1" == "-Uninstall" || "$1" == "-u" ]]; then
+if [[ "$1" == "-Uninstall" || "$1" == "-u" || "$1" == "--uninstall" ]]; then
     echo "==> Uninstalling KeyLamp service and files"
     systemctl --user stop ${SERVICE_NAME}.service 2>/dev/null || true
     systemctl --user disable ${SERVICE_NAME}.service 2>/dev/null || true
     rm -f "$SERVICE_FILE"
     systemctl --user daemon-reload
     echo "==> Removed systemd service"
+    if [[ -f "$UDEV_RULE_FILE" ]]; then
+        echo "==> Removing udev rule $UDEV_RULE_FILE"
+        sudo rm -f "$UDEV_RULE_FILE"
+        sudo udevadm control --reload-rules || true
+        sudo udevadm trigger --type=devices --action=change || true
+    fi
     echo "==> Deleting project directory $PROJECT_DIR"
     rm -rf "$PROJECT_DIR"
     echo "==> Uninstallation complete"
@@ -43,8 +50,7 @@ echo "==> Activating venv and installing dependencies"
 source "$VENV_DIR/bin/activate"
 
 pip install --upgrade pip
-pip install pyserial dbus-fast 
-pip install serial
+pip install pyserial dbus-fast
 
 deactivate
 

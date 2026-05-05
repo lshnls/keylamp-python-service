@@ -7,7 +7,6 @@
 
 Для начала:
 python.exe -m venv venv
-pip install serial
 pip install pyserial
 """
 import asyncio
