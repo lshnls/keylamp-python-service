@@ -43,9 +43,46 @@ echo "==> Activating venv and installing dependencies"
 source "$VENV_DIR/bin/activate"
 
 pip install --upgrade pip
-pip install pyserial dbus-fast
+pip install pyserial dbus-fast 
+pip install serial
 
 deactivate
+
+echo "==> Adding user to serial port access group"
+TARGET_USER="$USER"
+if [[ -n "$SUDO_USER" ]]; then
+    TARGET_USER="$SUDO_USER"
+elif [[ -n "$(logname 2>/dev/null)" ]]; then
+    TARGET_USER="$(logname)"
+fi
+
+DEVICE_GROUP=""
+for GROUP in dialout uucp tty; do
+    if getent group "$GROUP" > /dev/null 2>&1; then
+        DEVICE_GROUP="$GROUP"
+        break
+    fi
+ done
+
+if [[ -z "$DEVICE_GROUP" ]]; then
+    DEVICE_GROUP="dialout"
+    echo "==> Group '$DEVICE_GROUP' not found, creating group..."
+    sudo groupadd "$DEVICE_GROUP"
+fi
+
+echo "==> Using device group '$DEVICE_GROUP'"
+
+echo "==> Adding user '$TARGET_USER' to group '$DEVICE_GROUP'..."
+sudo usermod -aG "$DEVICE_GROUP" "$TARGET_USER"
+
+echo "==> Note: log out and log back in (or run 'newgrp $DEVICE_GROUP') for group membership to take effect"
+
+echo "==> Creating udev rule for serial devices"
+UDEV_RULE="SUBSYSTEM==\"tty\", KERNEL==\"ttyUSB[0-9]*\", GROUP=\"$DEVICE_GROUP\", MODE=\"0660\"\nSUBSYSTEM==\"tty\", KERNEL==\"ttyACM[0-9]*\", GROUP=\"$DEVICE_GROUP\", MODE=\"0660\"\n"
+
+echo -e "$UDEV_RULE" | sudo tee /etc/udev/rules.d/99-keylamp-serial.rules >/dev/null
+sudo udevadm control --reload-rules || true
+sudo udevadm trigger --type=devices --action=change || true
 
 echo "==> Creating systemd user directory"
 mkdir -p "$SYSTEMD_USER_DIR"

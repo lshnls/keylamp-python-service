@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^/home/lshnls/git/keylamp/keylamp-python-service/install/bin/python -m pip list$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
